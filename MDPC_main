@@ -1,0 +1,459 @@
+close all
+				clear all
+				load twomoons.txt;
+				
+				data = twomoons(:,[1,2]);
+
+				%% centralize and scale the data
+				data = data - repmat(mean(data),size(data,1),1);
+				data = data/max(max(abs(data)));
+
+
+			
+				true_label = twomoons(:,3);
+						
+
+				halo = true_label;
+			    NClusters = max(halo);
+				% twospiral = [[two_spiral(xx1,[1,2]),yy1];[two_spiral(xx2,[1,2]),-yy2]];
+				    figure
+					hold on
+				    cmap=colormap;
+					for i=1:NClusters
+					   ic=int8((i*64.)/(NClusters*1.));
+					   
+					   if NClusters<=12
+						   switch i
+							case 1
+								  plot(data(halo==i,1),data(halo==i,2),'o','MarkerSize',5,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+							case 2
+								  plot(data(halo==i,1),data(halo==i,2),'+','MarkerSize',5,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+							case 3
+								  plot(data(halo==i,1),data(halo==i,2),'x','MarkerSize',5,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+							case 4
+								  plot(data(halo==i,1),data(halo==i,2),'*','MarkerSize',5,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+							case 5
+								  plot(data(halo==i,1),data(halo==i,2),'s','MarkerSize',5,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+							case 6
+								  plot(data(halo==i,1),data(halo==i,2),'d','MarkerSize',5,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+							case 7
+								  plot(data(halo==i,1),data(halo==i,2),'v','MarkerSize',5,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+							case 8
+								  plot(data(halo==i,1),data(halo==i,2),'^','MarkerSize',5,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+							case 9
+								  plot(data(halo==i,1),data(halo==i,2),'<','MarkerSize',5,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+							case 10
+								  plot(data(halo==i,1),data(halo==i,2),'>','MarkerSize',5,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+							case 11
+								  plot(data(halo==i,1),data(halo==i,2),'p','MarkerSize',5,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+							case 12
+								  plot(data(halo==i,1),data(halo==i,2),'h','MarkerSize',5,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+						   end
+						   	 
+					    else
+						  plot(data(halo==i,1),data(halo==i,2),'.','MarkerSize',5,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));	
+                        end % end of if 					  
+					    
+				  end %end of for
+				  
+						
+						
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%构造数据%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            	dim = size(data,2);
+				num = size(data,1);
+				
+			
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%构造数据%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%				
+				
+				 sig = 3;wg =1;
+									 
+				%sig没有意义，在这里没有意义
+				[pd,affinity,distNN,affinityNN,kneigor] = genNNdist(data(:,:),num-1,sig);
+			    thla = ones(num,1);
+
+				rho  = 100;
+				shortd =rhoshortestdist (distNN,thla,rho);	
+				
+				mdist = [];
+                for i=1:num  
+				  for j=i+1:num 
+				        mdist = [mdist;[i,j, shortd(i,j) ]];
+				  end	
+				end
+				
+			
+
+		
+				
+				
+			%load mdist.dis;	
+            xx=mdist;
+
+
+            ND=max(xx(:,2));
+			NL=max(xx(:,1));
+			if (NL>ND)
+			  ND=NL;  %% 确保 DN 取为第一二列最大值中的较大者，并将其作为数据点总数
+			end
+			 
+			N=size(xx,1); %% xx 第一个维度的长度，相当于文件的行数（即距离的总个数）,实际就是ND*(ND-1)/2,the number of pair distances
+			 
+			
+			
+			
+			
+			%% 初始化为零,利用给定的成对距离生成距离矩阵
+			for i=1:ND
+			  for j=1:ND
+				dist(i,j)=0;
+			  end
+			end
+			%% 利用 xx 为 dist 数组赋值，注意输入只存了 0.5*DN(DN-1) 个值，这里将其补成了满矩阵
+			%% 这里不考虑对角线元素
+			for i=1:N
+			  ii=xx(i,1);
+			  jj=xx(i,2);
+			  dist(ii,jj)=xx(i,3);
+			  dist(jj,ii)=xx(i,3);
+			end
+		
+
+
+		
+			%% 确定 dc
+			 
+			percent=2;
+			fprintf('average percentage of neighbours (hard coded): %5.6f\n', percent);
+			 
+			position=round(N*percent/100); %% round 是一个四舍五入函数  ND*(ND-1)/2
+			sda=sort(xx(:,3)); %% 对所有距离值作升序排列
+			dc=sda(position);
+			
+
+			
+			
+			%% 计算局部密度 rho (利用 Gaussian 核)
+			 
+			fprintf('Computing Rho with gaussian kernel of radius: %12.6f\n', dc);
+			 
+			%% 将每个数据点的 rho 值初始化为零
+			for i=1:ND
+			  rho(i)=0.;
+			end
+			 
+			% Gaussian kernel within dc
+		%	for i=1:ND-1
+		%	  for j=i+1:ND
+		%	     if (dist(i,j)<dc)
+		%		   rho(i)=rho(i)+exp(-(dist(i,j)/dc)*(dist(i,j)/dc));
+		%		   rho(j)=rho(j)+exp(-(dist(i,j)/dc)*(dist(i,j)/dc));
+		%		 end  
+		%	  end
+		%	end
+			
+	        % Gaussian kernel within dc
+			for i=1:ND-1
+			  for j=i+1:ND
+			    
+				   rho(i)=rho(i)+exp(-(dist(i,j)/dc)*(dist(i,j)/dc));
+				   rho(j)=rho(j)+exp(-(dist(i,j)/dc)*(dist(i,j)/dc));
+			
+			  end
+			end
+		
+			
+			% "Cut off" kernel
+			%for i=1:ND-1
+			%  for j=i+1:ND
+			%    if (dist(i,j)<dc)
+			%       rho(i)=rho(i)+1.;
+			%       rho(j)=rho(j)+1.;
+			%    end
+			%  end
+			%end
+
+
+			
+			%% 先求矩阵列最大值，再求最大值，最后得到所有距离值中的最大值
+			maxd=max(max(dist));
+			 
+			%% 将 rho 按降序排列，ordrho 保持序
+			[rho_sorted,ordrho]=sort(rho,'descend');
+			  
+			
+			%% 处理 rho 值最大的数据点
+			delta(ordrho(1))=-1.;%nneigh 保存比当前ordrho(1)样本密度大的距离最近邻居的序号，delta保存这个距离
+			nneigh(ordrho(1))=0;
+			
+			
+			%% 生成 delta 和 nneigh 数组
+			for ii=2:ND
+			   delta(ordrho(ii))=maxd;
+			   for jj=1:ii-1
+				 if(dist(ordrho(ii),ordrho(jj))<delta(ordrho(ii)))
+					delta(ordrho(ii))=dist(ordrho(ii),ordrho(jj));
+					nneigh(ordrho(ii))=ordrho(jj);
+					%% 记录 rho 值更大的数据点中与 ordrho(ii) 距离最近的点的编号 ordrho(jj)
+				 end
+			   end
+			end
+			 
+			%% 生成 rho 值最大数据点的 delta 值
+			delta(ordrho(1))=max(delta(:));
+			
+			
+			
+	        rho=(rho-min(rho))/(max(rho)-min(rho));
+			delta=(delta-min(delta))/(max(delta)-min(delta));
+			
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%			
+			%% 决策图
+			 
+			disp('Generated file:DECISION GRAPH')
+			disp('column 1:Density')
+			disp('column 2:Delta')
+			 
+			fid = fopen('DECISION_GRAPH', 'w');
+			for i=1:ND
+			   fprintf(fid, '%6.2f %6.2f\n', rho(i),delta(i));
+			end
+			 
+			%% 选择一个围住类中心的矩形
+			disp('Select a rectangle enclosing cluster centers')
+			 
+			%% 每台计算机，句柄的根对象只有一个，就是屏幕，它的句柄总是 0
+			%% >> scrsz = get(0,'ScreenSize')
+			%% scrsz =
+			%%            1           1        1280         800
+			%% 1280 和 800 就是你设置的计算机的分辨率，scrsz(4) 就是 800，scrsz(3) 就是 1280
+			%scrsz = get(0,'ScreenSize');
+			 
+			%% 人为指定一个位置，感觉就没有那么 auto 了 :-)
+			%% figure('Position',[6 72 scrsz(3)/4. scrsz(4)/1.3]);
+			 
+			%% ind 和 gamma 在后面并没有用到
+			for i=1:ND
+			  ind(i)=i;
+			  gamma(i)=rho(i)*delta(i);
+			end
+			 
+			%% 利用 rho 和 delta 画出一个所谓的“决策图”
+			 
+			fig = figure;
+			tt=plot(rho(:),delta(:),'o','MarkerSize',5,'MarkerFaceColor','k','MarkerEdgeColor','k');
+			%title ('Decision Graph','FontSize',5.0)
+			box off;
+			axis([0 1.2 0 1.2]);
+			xlabel ('\rho')
+			ylabel ('\delta')
+			 
+		
+			rect = getrect(fig);
+			%% getrect 从图中用鼠标截取一个矩形区域， rect 中存放的是
+			%% 矩形左下角的坐标 (x,y) 以及所截矩形的宽度和高度
+			rhomin=rect(1);
+			deltamin=rect(2); %% 作者承认这是个 error，已由 4 改为 2 了!
+			 
+			%% 初始化 cluster 个数
+			NCLUST=0;
+		
+%%%%%%%%%%%%%%%%%%%%%%%%确定聚类个数的过程*************************************************************************
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%统计聚类的个数%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%	
+			
+			%% cl 为归属标志数组，cl(i)=j 表示第 i 号数据点归属于第 j 个 cluster
+			%% 先统一将 cl 初始化为 -1
+			for i=1:ND
+			  cl(i)=-1;
+			end
+			 
+			%% 在矩形区域内统计数据点（即聚类中心）的个数
+			for i=1:ND
+			  if ( (rho(i)>rhomin) && (delta(i)>deltamin))
+				 NCLUST=NCLUST+1;
+				 cl(i)=NCLUST; %% 第 i 号数据点属于第 NCLUST 个 cluster
+				 icl(NCLUST)=i;%% 逆映射,第 NCLUST 个 cluster 的中心为第 i 号数据点
+			  end
+			end
+			 
+			fprintf('NUMBER OF CLUSTERS: %i \n', NCLUST);
+			a = axis;
+
+			% limits of current figure
+			xmin=a(1);
+			xmax=a(2);
+			ymin=a(3);
+			ymax=a(4);
+			  
+			% makes grid 
+			options.gridx = 50;
+			options.gridy = 50;
+			[X,Y] = meshgrid(xmin:(xmax-xmin)/options.gridx:xmax,...
+							 ymin:(ymax-ymin)/options.gridy:ymax);
+
+			% make testing patterns covering whole grid
+			tst_data=[reshape(X',1,prod(size(X)));reshape(Y',1,prod(size(Y)))];
+			dec_fun= tst_data(1,:).*tst_data(2,:);
+			% reshape dec_fun
+            Z = reshape(dec_fun,size(X,1),size(X,2))';
+			% smooth shading
+			hold on
+            %contour(X,Y,Z,1,'k');
+			
+			%用不同的颜色表示聚类中心
+            cmap=colormap;
+			for i=1:NCLUST
+			   ic=int8((i*64.)/(NCLUST*1.));
+			   hold on
+			   plot(rho(icl(i)),delta(icl(i)),'o','MarkerSize',8,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+			   hold on
+			   cmap(ic,:)
+               contour(X,Y,Z,[rho(icl(i))*delta(icl(i)) rho(icl(i))*delta(icl(i)) rho(icl(i))*delta(icl(i))],'linecolor',cmap(ic,:));
+			end
+			
+		
+	
+			  
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%		
+		
+		    disp('Performing assignation')
+					 
+					%% 将其他数据点归类 (assignation)
+					for i=1:ND
+					  if (cl(ordrho(i))==-1)
+						cl(ordrho(i))=cl(nneigh(ordrho(i)));
+					  end
+					end
+					%% 由于是按照 rho 值从大到小的顺序遍历,循环结束后, cl 应该都变成正的值了.
+		
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%			
+		
+		
+		 %% 处理光晕点，halo这段代码应该移到 if (NCLUST>1) 内去比较好吧
+					for i=1:ND
+					  halo(i)=cl(i);
+					end
+					
+					
+					
+					if (NCLUST>1)
+					 
+							  % 初始化数组 bord_rho 为 0,每个 cluster 定义一个 bord_rho 值,就是每个聚类中的密度阈值，为了确定
+							  for i=1:NCLUST
+								bord_rho(i)=0.;
+							  end
+							 
+							 
+							  % 获取每一个 cluster 中平均密度的一个界 bord_rho
+							  for i=1:ND-1
+								for j=i+1:ND
+								  
+								  %% 距离足够小但不属于同一个 cluster 的 i 和 j
+								  if ((cl(i)~=cl(j))&& (dist(i,j)<=dc))
+									rho_aver=(rho(i)+rho(j))/2.; %% 取 i,j 两点的平均局部密度
+									
+									if (rho_aver>bord_rho(cl(i)))
+									  bord_rho(cl(i))=rho_aver;
+									end
+									
+									if (rho_aver>bord_rho(cl(j)))
+									  bord_rho(cl(j))=rho_aver;
+									end
+								  end
+								end
+							  end
+							  
+							  
+							  %% halo 值为 0 表示为 outlier，确定每个样本是否为outlier
+							  for i=1:ND
+								if (rho(i)<bord_rho(cl(i)))
+								  halo(i)=0;
+								end
+							  end
+					 
+					end
+					
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%halo(i)=0,outlier, halo(i)=1,normal%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%	
+					
+							%% 逐一处理每个 cluster
+							for i=1:NCLUST
+								  nc=0; %% 用于累计当前 cluster 中数据点的个数
+								  nh=0; %% 用于累计当前 cluster 中核心数据点的个数
+								  for j=1:ND
+									if (cl(j)==i)
+									  nc=nc+1;
+									end
+									if (halo(j)==i)
+									  nh=nh+1;
+									end
+								  end
+								 
+								  fprintf('CLUSTER: %i CENTER: %i ELEMENTS: %i CORE: %i HALO: %i \n', i,icl(i),nc,nh,nc-nh);
+								 
+							end
+		
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%end of DPC %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%	
+
+
+                
+					if (dim==2)
+				    figure
+					hold on
+				    cmap=colormap;
+					for i=1:NCLUST
+					   ic=int8((i*64.)/(NCLUST*1.));
+					   if NCLUST<=12
+						   switch i
+							case 1
+								  plot(data(icl(i),1),data(icl(i),2),'h','MarkerSize',8,'MarkerFaceColor','g','MarkerEdgeColor','g');
+								  plot(data(halo==i,1),data(halo==i,2),'+','MarkerSize',5,'MarkerFaceColor','g','MarkerEdgeColor','g');
+							case 2
+								  plot(data(icl(i),1),data(icl(i),2),'h','MarkerSize',8,'MarkerFaceColor','b','MarkerEdgeColor','b');
+								  plot(data(halo==i,1),data(halo==i,2),'o','MarkerSize',5,'MarkerFaceColor','b','MarkerEdgeColor','b');
+							case 3
+								  plot(data(icl(i),1),data(icl(i),2),'o','MarkerSize',8,'MarkerFaceColor','r','MarkerEdgeColor','r');
+								  plot(data(halo==i,1),data(halo==i,2),'x','MarkerSize',5,'MarkerFaceColor','r','MarkerEdgeColor','r');
+							case 4
+								  plot(data(icl(i),1),data(icl(i),2),'o','MarkerSize',8,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+								  plot(data(halo==i,1),data(halo==i,2),'*','MarkerSize',5,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+							case 5
+								  plot(data(icl(i),1),data(icl(i),2),'o','MarkerSize',8,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+								  plot(data(halo==i,1),data(halo==i,2),'s','MarkerSize',5,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+							case 6
+								  plot(data(icl(i),1),data(icl(i),2),'o','MarkerSize',8,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+								  plot(data(halo==i,1),data(halo==i,2),'d','MarkerSize',5,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+							case 7
+								  plot(data(icl(i),1),data(icl(i),2),'o','MarkerSize',8,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+								  plot(data(halo==i,1),data(halo==i,2),'v','MarkerSize',5,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+							case 8
+								  plot(data(icl(i),1),data(icl(i),2),'o','MarkerSize',8,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+								  plot(data(halo==i,1),data(halo==i,2),'^','MarkerSize',5,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+							case 9
+								  plot(data(icl(i),1),data(icl(i),2),'o','MarkerSize',8,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+								  plot(data(halo==i,1),data(halo==i,2),'<','MarkerSize',5,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+							case 10
+								  plot(data(icl(i),1),data(icl(i),2),'o','MarkerSize',8,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+								  plot(data(halo==i,1),data(halo==i,2),'>','MarkerSize',5,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+							case 11
+								  plot(data(icl(i),1),data(icl(i),2),'o','MarkerSize',8,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+								  plot(data(halo==i,1),data(halo==i,2),'p','MarkerSize',5,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+							case 12
+								  plot(data(icl(i),1),data(icl(i),2),'o','MarkerSize',8,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+								  plot(data(halo==i,1),data(halo==i,2),'h','MarkerSize',5,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+							otherwise
+								  plot(data(icl(i),1),data(icl(i),2),'o','MarkerSize',8,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+								  plot(data(halo==i,1),data(halo==i,2),'h','MarkerSize',5,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+						   end
+						  
+					  else
+						   plot(data(icl(i),1),data(icl(i),2),'o','MarkerSize',8,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
+						   plot(data(halo==i,1),data(halo==i,2),'.','MarkerSize',5,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));	
+                      end 					  
+					    
+				  end
+				  plot(data(halo==0,1),data(halo==0,2),'.','MarkerSize',5,'MarkerFaceColor','k','MarkerEdgeColor','k');	
+				 
+			end
